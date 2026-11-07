@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XRT Vault - Mining Dashboard</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--cyan:#00dfff;--blue:#008cff;--navy:#020b1c}
+body{
+ background:#020817;color:#f4f8ff;
+ font-family:Arial,Helvetica,sans-serif;
+ overflow-x:hidden;
+ background-image:
+ radial-gradient(ellipse at 75% 25%,#003b7450,transparent 40%),
+ radial-gradient(ellipse at 5% 85%,#004b8a30,transparent 35%),
+ linear-gradient(130deg,#020817,#001126 55%,#020817);
+}
+body:before{
+ content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+ background-image:
+ linear-gradient(#008cff12 1px,transparent 1px),
+ linear-gradient(90deg,#008cff12 1px,transparent 1px);
+ background-size:35px 35px;
+ mask-image:linear-gradient(to bottom,black,transparent 95%);
+}
+.app{max-width:650px;margin:auto;padding:17px 14px 105px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 27px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{
+ font-size:34px;font-weight:1000;font-style:italic;letter-spacing:-4px;
+ color:#eaf7ff;text-shadow:0 0 8px #00cfff,2px 3px 0 #1263a5;
+ border-right:1px solid var(--cyan);padding-right:12px;
+}
+.brandname{font-size:24px;font-weight:900;white-space:nowrap}
+.brandname span{color:var(--cyan)}
+.tagline{font-size:9px;letter-spacing:4px;color:#c3d9f4;margin-top:5px}
+.profile{
+ border:1px solid var(--cyan);border-radius:30px;padding:10px 13px;
+ color:white;background:#00172b;font-size:13px;white-space:nowrap;
+ box-shadow:0 0 15px #00bfff35;
+}
+.welcome{font-size:14px;color:#b4d4ff;font-weight:bold;margin-bottom:8px}
+h1{font-size:30px;line-height:1.15;margin-bottom:18px}
+h1 span{color:var(--cyan)}
+.hero{
+ position:relative;min-height:310px;border:1px solid var(--cyan);border-radius:22px;
+ padding:20px 17px 16px;overflow:hidden;
+ background:linear-gradient(130deg,#061c36ed,#031126f5 65%,#00234a);
+ box-shadow:0 0 14px #00cfff70,inset 0 0 25px #007bff20;
+}
+.hero:before,.panel:before{
+ content:"";position:absolute;inset:0;pointer-events:none;
+ background:linear-gradient(115deg,transparent 30%,#00cfff0d 50%,transparent 70%);
+}
+.coin-area{position:absolute;top:0;right:0;width:48%;height:190px;display:flex;align-items:center;justify-content:center;z-index:1;pointer-events:none}
+.coin-platform{
+ position:absolute;bottom:8px;width:230px;height:35px;border-radius:50%;
+ border:3px solid #00bfff;box-shadow:0 0 12px #00cfff,0 0 35px #007bff;
+ transform:perspective(100px) rotateX(55deg);
+}
+.coin{width:125px;height:125px;
+ width:145px;height:145px;border-radius:50%;position:relative;
+ display:flex;align-items:center;justify-content:center;
+ background:radial-gradient(circle at 35% 25%,#56dcff,#0759b4 35%,#001c48 68%,#008eff);
+ border:8px double #54dfff;
+ box-shadow:0 0 12px #00cfff,0 0 35px #008cff,inset 0 0 20px #00bfff;
+ transform:rotate(-12deg);
+}
+.coin:before{content:"";position:absolute;inset:9px;border:2px solid #74eaff;border-radius:50%}
+.coin span{font-size:76px;font-weight:1000;font-style:italic;color:#d9f6ff;
+ text-shadow:3px 4px 0 #07539a,-2px -2px 4px white}
+.orbit{position:absolute;width:210px;height:65px;border:5px solid #00dfff;
+ border-left-color:transparent;border-right-color:#008bff;border-radius:50%;
+ transform:rotate(-25deg);filter:drop-shadow(0 0 8px #00cfff)}
+.balance-label{position:relative;z-index:2;margin-top:115px;max-width:55%;font-size:15px;color:#c4dafa;font-weight:bold}
+.balance-line{position:relative;z-index:2;display:flex;align-items:baseline;gap:10px;margin:3px 0}
+.balance{font-size:64px;font-weight:900;letter-spacing:-3px;color:#00d8ef}
+.unit{font-size:23px;font-weight:bold}
+.subtext{position:relative;z-index:2;color:#b8cce9;font-size:15px;margin-bottom:18px}
+.primary{position:relative;z-index:2;
+ width:100%;border:0;border-radius:40px;padding:16px 12px;
+ background:linear-gradient(100deg,#00e4f5,#0099ff);
+ color:#001326;font-size:19px;font-weight:900;
+ box-shadow:0 0 15px #00dfff, inset 0 1px 5px #b9ffff;
+ cursor:pointer;
+}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:17px}
+.stat{
+ min-height:91px;border:1px solid #00bfff;border-radius:16px;
+ background:linear-gradient(130deg,#061d39,#031126);
+ box-shadow:0 0 10px #008cff30,inset 0 0 15px #008cff15;
+ display:flex;align-items:center;gap:12px;padding:13px;
+}
+.stat-icon{font-size:34px;color:var(--cyan);width:42px;text-align:center}
+.stat-label{font-size:13px;color:#c7d9f4;margin-bottom:5px}
+.stat-value{font-size:22px;color:var(--cyan);font-weight:900}
+.stat-value.green{color:#00e9a5}
+.section{margin-top:22px}
+.section-title{font-size:19px;font-weight:800;margin:0 0 10px 5px}
+.section-title .emoji{margin-right:8px}
+.panel{
+ position:relative;border:1px solid var(--cyan);border-radius:17px;
+ padding:16px;background:linear-gradient(130deg,#061d39,#031126);
+ box-shadow:0 0 12px #00bfff38;
+}
+.progress-head{font-size:14px;color:#c5dafa;margin-bottom:10px}
+.progress-row{display:flex;align-items:center;gap:12px}
+.progress-track{height:13px;background:#173451;border-radius:20px;overflow:hidden;flex:1}
+.progress-fill{height:100%;width:35%;border-radius:20px;background:linear-gradient(90deg,#00eaff,#009cff);box-shadow:0 0 12px #00cfff}
+.progress-number{font-size:25px;font-weight:900}
+.note{font-size:12px;color:#b5c9e5;margin-top:9px}
+.reward{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.reward-label{font-size:14px;color:#c8dcf8}
+.reward-amount{font-size:37px;color:var(--cyan);font-weight:900}
+.claim{
+ border:1px solid #00eaff;border-radius:35px;padding:13px 15px;
+ background:linear-gradient(100deg,#00dff0,#009cff);
+ color:#001326;font-size:13px;font-weight:900;white-space:nowrap;
+ box-shadow:0 0 14px #00cfff;cursor:pointer;
+}
+.about{font-size:13px;color:#c9d9f0;line-height:1.6;padding:15px 17px}
+nav{
+ position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+ width:min(650px,100%);display:grid;grid-template-columns:repeat(4,1fr);
+ padding:8px 9px calc(8px + env(safe-area-inset-bottom));
+ background:#020d20f5;border-top:1px solid #008cff;
+ box-shadow:0 -7px 25px #007bff30;z-index:10;
+}
+nav button{border:0;background:transparent;color:#b7cce8;padding:6px 2px;font-size:12px;cursor:pointer}
+nav button span{display:block;font-size:25px;margin-bottom:3px}
+nav button.active{color:#00eaff;text-shadow:0 0 10px #00cfff}
+#message{font-size:12px;color:#00eaff;text-align:center;margin-top:12px;min-height:17px}
+@media(max-width:390px){
+ .brandname{font-size:20px}.logo{font-size:29px}
+ h1{font-size:26px}.balance{font-size:55px}
+ .stat{padding:10px;gap:7px}.stat-value{font-size:19px}
+ .claim{font-size:11px;padding:12px 10px}
+}
+
+/* PREMIUM XRT METALLIC + ANGULAR DESIGN */
+.logo {
+ background:linear-gradient(180deg,#ffffff 5%,#a8c9e9 25%,#ffffff 42%,#6386b6 58%,#f4fbff 75%,#7896bd 100%);
+ -webkit-background-clip:text;
+ background-clip:text;
+ -webkit-text-fill-color:transparent;
+ filter:drop-shadow(0 0 5px #00cfff);
+ text-shadow:none;
+ font-weight:1000;
+}
+.hero,.stat,.panel {
+ border-radius:0;
+ clip-path:polygon(0 7%,7% 0,93% 0,100% 10%,100% 90%,93% 100%,7% 100%,0 90%);
+}
+.hero {
+ border:2px solid #00dfff;
+ box-shadow:0 0 18px #00cfff,inset 0 0 22px #007bff30;
+}
+.stat,.panel {
+ border:2px solid #00bfff;
+ box-shadow:0 0 13px #00bfff70,inset 0 0 15px #007bff25;
+}
+
+
+/* FINAL VISUAL POLISH */
+.hero,.stat,.panel {
+ clip-path:polygon(0 4%,4% 0,96% 0,100% 4%,100% 96%,96% 100%,4% 100%,0 96%);
+}
+.coin-area {width:50%;height:205px}
+.coin {width:145px;height:145px}
+.coin span {font-size:88px}
+.logo {font-size:40px}
+@media(max-width:390px) {
+ .logo {font-size:34px}
+}
+
+
+/* XRT VAULT FINAL PREMIUM UPGRADE */
+
+/* Chrome metallic logo */
+.logo {
+ font-size:42px !important;
+ font-weight:1000;
+ background:linear-gradient(
+  180deg,#ffffff 0%,#d8edff 16%,#718eb5 32%,
+  #ffffff 46%,#6d91bd 62%,#eaf8ff 80%,#5479a8 100%
+ );
+ -webkit-background-clip:text;
+ background-clip:text;
+ -webkit-text-fill-color:transparent;
+ filter:drop-shadow(0 0 5px #00dfff) drop-shadow(2px 3px 2px #00152d);
+}
+
+/* Coin depth and metallic rings */
+.coin {
+ border:8px double #70eaff;
+ box-shadow:
+  0 0 10px #00eaff,
+  0 0 25px #008cff,
+  0 0 45px #007bff90,
+  inset 0 0 12px #ffffff70,
+  inset 0 0 30px #00aaff;
+}
+.coin:before {
+ inset:8px;
+ border:3px solid #9af3ff;
+ box-shadow:inset 0 0 12px #00cfff,0 0 12px #00cfff;
+}
+.coin:after {
+ content:"";
+ position:absolute;
+ inset:-15px;
+ border:3px solid #008fff;
+ border-radius:50%;
+ box-shadow:0 0 12px #00cfff,inset 0 0 12px #00cfff;
+ opacity:.8;
+}
+.coin span {
+ background:linear-gradient(145deg,#fff,#a9d8ff 40%,#fff 55%,#4380c4 80%,#fff);
+ -webkit-background-clip:text;
+ -webkit-text-fill-color:transparent;
+ filter:drop-shadow(3px 4px 2px #00234c);
+}
+
+/* More futuristic cyber background */
+body {
+ background-image:
+ radial-gradient(ellipse at 75% 25%,#0057a650,transparent 42%),
+ radial-gradient(ellipse at 5% 85%,#007bff30,transparent 38%),
+ linear-gradient(130deg,#010713,#00152b 55%,#010713);
+}
+body:after {
+ content:"";
+ position:fixed;
+ inset:0;
+ z-index:-1;
+ pointer-events:none;
+ opacity:.25;
+ background:
+ linear-gradient(135deg,transparent 48%,#008cff 49%,transparent 50%) 0 0/190px 150px,
+ linear-gradient(45deg,transparent 48%,#00cfff 49%,transparent 50%) 0 0/220px 180px;
+}
+
+/* Cleaner angular cards */
+.hero,.stat,.panel {
+ clip-path:polygon(
+  0 5%,5% 0,95% 0,100% 5%,
+  100% 95%,95% 100%,5% 100%,0 95%
+ );
+ border:2px solid #00cfff;
+ box-shadow:0 0 14px #00bfff55,inset 0 0 20px #007bff25;
+}
+.stat {
+ min-height:100px;
+}
+.hero {
+ box-shadow:0 0 22px #00cfff75,inset 0 0 25px #007bff30;
+}
+
+/* About section and bottom navigation spacing */
+.app {
+ padding-bottom:165px !important;
+}
+.about {
+ min-height:70px;
+ padding:18px 20px;
+ line-height:1.7;
+}
+nav {
+ background:rgba(1,10,27,.98);
+ border-top:1px solid #00cfff;
+ box-shadow:0 -8px 30px #007bff40;
+ padding-bottom:calc(12px + env(safe-area-inset-bottom));
+}
+nav button.active {
+ color:#00eaff;
+ text-shadow:0 0 12px #00cfff;
+}
+
+/* Mobile adjustments */
+@media(max-width:390px) {
+ .logo {font-size:34px !important}
+ .coin-area {height:205px}
+ .coin {width:140px;height:140px}
+ .balance {font-size:55px}
+ .stat {padding:10px;gap:7px}
+ .stat-value {font-size:19px}
+ .app {padding-bottom:170px !important}
+}
+
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+ <div class="brand">
+  <div class="logo">XRT</div>
+  <div><div class="brandname">XRT <span>VAULT</span></div>
+  <div class="tagline">MINING • EARN • GROW</div></div>
+ </div>
+ <div class="profile">👤 Miner　⌄</div>
+</header>
+
+<div class="welcome">WELCOME BACK, MINER</div>
+<h1>Your Mining <span>Dashboard</span></h1>
+
+<section class="hero">
+ <div class="coin-area">
+  <div class="coin-platform"></div>
+  <div class="orbit"></div>
+  <div class="coin"><span>X</span></div>
+ </div>
+ <div class="balance-label">TOTAL XRT BALANCE</div>
+ <div class="balance-line"><div class="balance" id="balance">0.00</div><div class="unit">XRT</div></div>
+ <div class="subtext">Your mining journey starts here.</div>
+ <button class="primary" onclick="startMining()">⚡ START MINING　›</button>
+ <div id="message"></div>
+</section>
+
+<div class="stats">
+ <div class="stat"><div class="stat-icon">⛏</div><div><div class="stat-label">Daily Mining</div><div class="stat-value">9 XRT / DAY</div></div></div>
+ <div class="stat"><div class="stat-icon">🎁</div><div><div class="stat-label">Daily Bonus</div><div class="stat-value">1 XRT</div></div></div>
+ <div class="stat"><div class="stat-icon">🪙</div><div><div class="stat-label">Total Mined</div><div class="stat-value" id="total">0 XRT</div></div></div>
+ <div class="stat"><div class="stat-icon">♧</div><div><div class="stat-label">Mining Status</div><div class="stat-value green" id="status">● Inactive</div></div></div>
+</div>
+
+<section class="section">
+ <div class="section-title"><span class="emoji">📊</span>Mining Progress</div>
+ <div class="panel">
+  <div class="progress-head">Next reward progress</div>
+  <div class="progress-row">
+   <div class="progress-track"><div class="progress-fill" id="miningProgress"></div></div>
+   <div class="progress-number" id="progressNumber">0%</div>
+  </div>
+  <div class="note">Progress toward your next 1 XRT mining reward.</div>
+ </div>
+</section>
+
+<section class="section">
+ <div class="section-title"><span class="emoji">🎁</span>Daily Rewards</div>
+ <div class="panel reward">
+  <div><div class="reward-label">Your daily reward</div><div class="reward-amount">+1 XRT</div></div>
+  <button class="claim" onclick="claimDaily()">🎁 CLAIM DAILY BONUS</button>
+ </div>
+</section>
+
+<section class="section">
+ <div class="section-title"><span class="emoji">🔥</span>7-Day Login Streak</div>
+ <div class="panel">
+  <div class="reward-label">Your current streak</div>
+  <div class="reward-amount" id="streak">0 / 7 Days</div>
+  <div class="note">Claim daily for 7 consecutive days and get an extra 5 XRT gift!</div>
+ </div>
+</section>
+
+<section class="section">
+ <div class="section-title"><span class="emoji">ℹ️</span>About XRT Vault</div>
+ <div class="panel about">
+  XRT Vault is a digital rewards platform. Start your journey, explore mining features and collect in-app XRT reward points.
+ </div>
+</section>
+</div>
+
+<nav>
+ <button class="active" onclick="navSelect(this)"><span>⌂</span>Home</button>
+ <button onclick="navSelect(this)"><span>⛏</span>Mining</button>
+ <button onclick="navSelect(this)"><span>🎁</span>Rewards</button>
+ <button onclick="navSelect(this)"><span>👤</span>Profile</button>
+</nav>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if(tg){tg.ready();tg.expand();}
+
+function showMessage(text){
+ document.getElementById("message").textContent=text;
+}
+function headers(){
+ return {"X-Telegram-Init-Data":tg?.initData || ""};
+}
+async function loadAccount(){
+ if(!tg?.initData){showMessage("Open this app from Telegram to connect your account.");return;}
+ try{
+  const r=await fetch("/api/me",{headers:headers()});
+  const d=await r.json();
+  if(!r.ok){showMessage(d.error || "Could not load account.");return;}
+  document.getElementById("balance").textContent=Number(d.balance).toFixed(2);
+  document.getElementById("total").textContent=Number(d.balance).toFixed(2)+" XRT";
+  const progress = (Number(d.balance) % 1) * 100;
+  const fill = document.getElementById("miningProgress");
+  const number = document.getElementById("progressNumber");
+  if(fill) fill.style.width = progress + "%";
+  if(number) number.textContent = Math.floor(progress) + "%";
+  document.getElementById("status").textContent="● Active";
+    const streakEl = document.getElementById("streak");
+    const streak = Number(d.daily_streak);
+    if(streakEl) streakEl.textContent = (streak === 0 ? 0 : ((streak - 1) % 7) + 1) + " / 7 Days";
+  showMessage("Welcome, "+(d.first_name || "Miner")+"!");
+ }catch(e){showMessage("Connection error. Please try again.");}
+}
+async function claimDaily(){
+ if(!tg?.initData){showMessage("Open XRT Vault through Telegram first.");return;}
+ try{
+  const r=await fetch("/api/daily",{method:"POST",headers:headers()});
+  const d=await r.json();
+  if(!r.ok){showMessage(d.error || "Bonus could not be claimed.");return;}
+  document.getElementById("balance").textContent=Number(d.balance).toFixed(2);
+  document.getElementById("total").textContent=Number(d.balance).toFixed(2)+" XRT";
+  const progress = (Number(d.balance) % 1) * 100;
+  const fill = document.getElementById("miningProgress");
+  const number = document.getElementById("progressNumber");
+  if(fill) fill.style.width = progress + "%";
+  if(number) number.textContent = Math.floor(progress) + "%";
+  const streakEl = document.getElementById("streak");
+  const streak = Number(d.daily_streak);
+  if(streakEl) streakEl.textContent = ((streak - 1) % 7 + 1) + " / 7 Days";
+  showMessage("Claimed +" + d.reward + " XRT" +
+   (d.streak_bonus ? " + " + d.streak_bonus + " XRT 7-Day Gift!" : "") +
+   " | Streak: " + d.daily_streak + " days");
+ }catch(e){showMessage("Connection error. Please try again.");}
+}
+function startMining(){
+ if(!tg?.initData){showMessage("Open XRT Vault through Telegram first.");return;}
+ loadAccount();
+}
+function navSelect(button){
+ document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+ button.classList.add("active");
+}
+loadAccount();
+</script>
+</body>
+</html>
