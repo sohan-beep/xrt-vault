@@ -227,3 +227,73 @@ if __name__ == "__main__":
         raise RuntimeError("BOT_TOKEN is missing")
 
     app.run(host="0.0.0.0", port=5000)
+
+# XRT Vault Telegram Webhook
+import urllib.request
+
+WEBHOOK_URL = "https://xrt-vault.onrender.com/telegram-webhook"
+WEBHOOK_SECRET = hashlib.sha256(
+    (TOKEN + ":xrt-vault-webhook").encode()
+).hexdigest() if TOKEN else ""
+
+
+def telegram_api(method, payload):
+    url = f"https://api.telegram.org/bot{TOKEN}/{method}"
+    body = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        url, data=body,
+        headers={"Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(req, timeout=15) as response:
+        return json.loads(response.read())
+
+
+@app.route("/telegram-webhook", methods=["POST"])
+def telegram_webhook():
+    if not TOKEN or not hmac.compare_digest(
+        request.headers.get("X-Telegram-Bot-Api-Secret-Token", ""),
+        WEBHOOK_SECRET
+    ):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    update = request.get_json(silent=True) or {}
+    message = update.get("message", {})
+    chat = message.get("chat", {})
+    text = message.get("text", "")
+
+    if chat.get("type") == "private" and text.startswith("/start"):
+        telegram_api("sendMessage", {
+            "chat_id": chat["id"],
+            "text": (
+                "💙 Welcome to XRT Vault!\n\n"
+                "Something Big Is Coming.\n"
+                "Explore the Unknown. Unlock the Future.\n\n"
+                "⚡ Be Early. Stay Ahead."
+            ),
+            "reply_markup": {
+                "inline_keyboard": [[{
+                    "text": "🚀 Open XRT Vault",
+                    "web_app": {"url": "https://xrt-vault.onrender.com"}
+                }]]
+            }
+        })
+
+    elif chat.get("type") == "private" and text.startswith("/help"):
+        telegram_api("sendMessage", {
+            "chat_id": chat["id"],
+            "text": "💎 XRT VAULT\n\nUse /start to open XRT Vault."
+        })
+
+    return jsonify({"ok": True})
+
+
+# Register webhook when the Render app starts
+if TOKEN:
+    try:
+        telegram_api("setWebhook", {
+            "url": WEBHOOK_URL,
+            "secret_token": WEBHOOK_SECRET
+        })
+        print("XRT Vault Telegram webhook registered.")
+    except Exception as e:
+        print("Telegram webhook registration failed:", str(e))
