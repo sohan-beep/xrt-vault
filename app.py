@@ -14,7 +14,7 @@ app = Flask(__name__)
 TOKEN = os.getenv("BOT_TOKEN")
 DATA_FILE = os.path.expanduser("~/users.json")
 
-MINING_PER_DAY = 9
+MINING_PER_DAY = 1440
 DAILY_BONUS = 1
 STREAK_BONUS = 5
 
@@ -95,7 +95,8 @@ def get_user(data, user_id):
             "balance": 0,
             "last_daily": "",
             "daily_streak": 0,
-            "mining_last_update": now
+            "mining_last_update": now,
+            "mining_rate_version": 2
         }
 
     user = data[uid]
@@ -104,9 +105,14 @@ def get_user(data, user_id):
     user.setdefault("last_daily", "")
     user.setdefault("daily_streak", 0)
 
-    # Existing accounts start the new mining system from now.
-    if "mining_last_update" not in user:
+    if user.get("mining_rate_version", 0) < 2:
+        last = float(user.get("mining_last_update", now))
+        elapsed = max(0, now - last)
+        old_earned = elapsed * 9 / 86400
+
+        user["balance"] = float(user.get("balance", 0)) + old_earned
         user["mining_last_update"] = now
+        user["mining_rate_version"] = 2
 
     return user
 
