@@ -110,7 +110,29 @@ def get_user(data, user_id):
 
     return user
 
+def process_referral(data, new_user_id, referrer_id):
+    new_uid = str(new_user_id)
+    ref_uid = str(referrer_id)
 
+    if new_uid == ref_uid:
+        return False
+
+    if ref_uid not in data:
+        return False
+
+    new_user = data[new_uid]
+    referrer = data[ref_uid]
+
+    if new_user.get("referred_by"):
+        return False
+
+    new_user["referred_by"] = ref_uid
+    referrer["balance"] = float(referrer.get("balance", 0)) + 25
+    referrer["referral_count"] = int(
+        referrer.get("referral_count", 0)
+    ) + 1
+
+    return True
 def accrue_mining(user):
     now = time.time()
     last = float(user["mining_last_update"])
@@ -145,6 +167,14 @@ def me():
         data = load_data()
         user = get_user(data, telegram_user["id"])
 
+        pending_referrer = user.pop("pending_referrer", None)
+        if pending_referrer:
+            process_referral(
+                data,
+                telegram_user["id"],
+                pending_referrer
+            )
+
         accrue_mining(user)
         save_data(data)
 
@@ -157,7 +187,10 @@ def me():
         "balance": round(balance, 6),
         "mining_per_day": MINING_PER_DAY,
         "daily_bonus": DAILY_BONUS,
-        "daily_streak": streak
+        "daily_streak": streak,
+        "referral_link": f"https://t.me/xrtvaultbot?start=ref_{telegram_user['id']}",
+        "referral_count": int(user.get("referral_count", 0)),
+        "referral_earned": int(user.get("referral_count", 0)) * 25
     })
 
 
@@ -262,6 +295,26 @@ def telegram_webhook():
     text = message.get("text", "")
 
     if chat.get("type") == "private" and text.startswith("/start"):
+        parts = text.split(maxsplit=1)
+        payload = parts[1].strip() if len(parts) > 1 else ""
+
+        if payload.startswith("ref_"):
+            ref_uid = payload[4:]
+            uid = str(chat["id"])
+
+            with lock:
+                data = load_data()
+
+                if (ref_uid.isdigit() and ref_uid != uid
+                        and ref_uid in data):
+                    if uid not in data:
+                        data[uid] = {"pending_referrer": ref_uid}
+                    elif (not data[uid].get("referred_by")
+                          and not data[uid].get("pending_referrer")):
+                        data[uid]["pending_referrer"] = ref_uid
+
+                    save_data(data)
+
         telegram_api("sendMessage", {
             "chat_id": chat["id"],
             "text": (

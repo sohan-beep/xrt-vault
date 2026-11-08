@@ -346,6 +346,20 @@ nav button.active {
 </section>
 
 <section class="section">
+ <div class="section-title"><span class="emoji">👥</span>Invite & Earn</div>
+ <div class="panel">
+  <div class="reward-label">Invite friends and earn XRT</div>
+  <div class="note">Share your personal referral link with friends.</div>
+  <input id="referralLink" readonly value="Loading referral link..." style="width:100%;margin:14px 0;padding:12px;background:#111827;color:#fff;border:1px solid #334155;border-radius:10px;">
+  <button class="claim" onclick="copyReferral()">📋 COPY REFERRAL LINK</button>
+  <div class="stats" style="margin-top:16px">
+   <div class="stat"><div class="stat-label">Total Referrals</div><div class="stat-value" id="referralCount">0</div></div>
+   <div class="stat"><div class="stat-label">Referral Earnings</div><div class="stat-value" id="referralEarned">0 XRT</div></div>
+  </div>
+ </div>
+</section>
+
+<section class="section">
  <div class="section-title"><span class="emoji">🔥</span>7-Day Login Streak</div>
  <div class="panel">
   <div class="reward-label">Your current streak</div>
@@ -387,6 +401,9 @@ async function loadAccount(){
   if(!r.ok){showMessage(d.error || "Could not load account.");return;}
   document.getElementById("balance").textContent=Number(d.balance).toFixed(2);
   document.getElementById("total").textContent=Number(d.balance).toFixed(2)+" XRT";
+  document.getElementById("referralLink").value=d.referral_link || "";
+  document.getElementById("referralCount").textContent=d.referral_count || 0;
+  document.getElementById("referralEarned").textContent=(d.referral_earned || 0)+" XRT";
   const progress = (Number(d.balance) % 1) * 100;
   const fill = document.getElementById("miningProgress");
   const number = document.getElementById("progressNumber");
@@ -419,6 +436,19 @@ async function claimDaily(){
    (d.streak_bonus ? " + " + d.streak_bonus + " XRT 7-Day Gift!" : "") +
    " | Streak: " + d.daily_streak + " days");
  }catch(e){showMessage("Connection error. Please try again.");}
+}
+async function copyReferral(){
+ const link=document.getElementById("referralLink").value;
+ if(!link){showMessage("Referral link not ready.");return;}
+ try{
+  await navigator.clipboard.writeText(link);
+  showMessage("Referral link copied!");
+ }catch(e){
+  const field=document.getElementById("referralLink");
+  field.select();
+  document.execCommand("copy");
+  showMessage("Referral link copied!");
+ }
 }
 function startMining(){
  if(!tg?.initData){showMessage("Open XRT Vault through Telegram first.");return;}
