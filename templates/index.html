@@ -346,7 +346,7 @@ nav button.active {
  <div class="balance-label">TOTAL XRT BALANCE</div>
  <div class="balance-line"><div class="balance" id="balance">0.00</div><div class="unit">XRT</div></div>
  <div class="subtext">Your mining journey starts here.</div>
- <button id="miningButton" class="primary" onclick="startMining()">⚡ START MINING　›</button>
+ <button id="miningButton" class="primary" onclick="toggleMining()">⚡ START MINING　›</button>
  <div id="message"></div>
 </section>
 
@@ -425,14 +425,58 @@ function showMessage(text){
 function headers(){
  return {"X-Telegram-Init-Data":tg?.initData || ""};
 }
+let currentBalance = 0;
+let miningActive = false;
+let miningStartedAt = Date.now();
+
+function renderBalance(){
+ const earned = miningActive
+  ? (Date.now() - miningStartedAt) / 1000 / 60
+  : 0;
+ const value = currentBalance + earned;
+
+ document.getElementById("balance").textContent = value.toFixed(6);
+ document.getElementById("total").textContent = value.toFixed(6) + " XRT";
+
+ const progress = (value % 1) * 100;
+ const fill = document.getElementById("miningProgress");
+ const number = document.getElementById("progressNumber");
+ if(fill) fill.style.width = progress + "%";
+ if(number) number.textContent = Math.floor(progress) + "%";
+}
+
+function setBalance(value){
+ currentBalance = Number(value) || 0;
+ miningStartedAt = Date.now();
+ renderBalance();
+}
+
+function setMiningVisual(active){
+ miningActive = active;
+ const area = document.querySelector(".coin-area");
+ const button = document.getElementById("miningButton");
+ const status = document.getElementById("status");
+
+ if(area) area.classList.toggle("mining-active", active);
+ if(button){
+  button.classList.toggle("mining-active", active);
+  button.textContent = active ? "⏹ STOP MINING" : "⚡ START MINING　›";
+ }
+ if(status) status.textContent = active ? "● Active" : "● Inactive";
+
+ miningStartedAt = Date.now();
+ renderBalance();
+}
+
+setInterval(renderBalance, 1000);
+
 async function loadAccount(){
  if(!tg?.initData){showMessage("Open this app from Telegram to connect your account.");return;}
  try{
   const r=await fetch("/api/me",{headers:headers()});
   const d=await r.json();
   if(!r.ok){showMessage(d.error || "Could not load account.");return;}
-  document.getElementById("balance").textContent=Number(d.balance).toFixed(2);
-  document.getElementById("total").textContent=Number(d.balance).toFixed(2)+" XRT";
+  setBalance(d.balance);
   document.getElementById("referralLink").value=d.referral_link || "";
   document.getElementById("referralCount").textContent=d.referral_count || 0;
   document.getElementById("referralEarned").textContent=(d.referral_earned || 0)+" XRT";
@@ -441,7 +485,7 @@ async function loadAccount(){
   const number = document.getElementById("progressNumber");
   if(fill) fill.style.width = progress + "%";
   if(number) number.textContent = Math.floor(progress) + "%";
-  document.getElementById("status").textContent="● Active";
+  setMiningVisual(Boolean(d.mining_active));
     const streakEl = document.getElementById("streak");
     const streak = Number(d.daily_streak);
     if(streakEl) streakEl.textContent = (streak === 0 ? 0 : ((streak - 1) % 7) + 1) + " / 7 Days";
@@ -454,8 +498,7 @@ async function claimDaily(){
   const r=await fetch("/api/daily",{method:"POST",headers:headers()});
   const d=await r.json();
   if(!r.ok){showMessage(d.error || "Bonus could not be claimed.");return;}
-  document.getElementById("balance").textContent=Number(d.balance).toFixed(2);
-  document.getElementById("total").textContent=Number(d.balance).toFixed(2)+" XRT";
+  setBalance(d.balance);
   const progress = (Number(d.balance) % 1) * 100;
   const fill = document.getElementById("miningProgress");
   const number = document.getElementById("progressNumber");
@@ -482,34 +525,40 @@ async function copyReferral(){
   showMessage("Referral link copied!");
  }
 }
-function setMiningVisual(active){
- const area=document.querySelector(".coin-area");
- const button=document.getElementById("miningButton");
- const status=document.getElementById("status");
-
- if(area) area.classList.toggle("mining-active",active);
- if(button){
-  button.classList.toggle("mining-active",active);
-  button.textContent=active ? "⚡ MINING ACTIVATED ✓" : "⚡ START MINING　›";
- }
- if(status) status.textContent=active ? "● Active" : "● Inactive";
-}
-
-function startMining(){
- if(!tg?.initData){showMessage("Open XRT Vault through Telegram first.");return;}
- if(localStorage.getItem("xrt_mining_active")==="true"){
-  showMessage("⚡ Mining is already activated!");
+async function toggleMining(){
+ if(!tg?.initData){
+  showMessage("Open XRT Vault through Telegram first.");
   return;
  }
- localStorage.setItem("xrt_mining_active","true");
- setMiningVisual(true);
- loadAccount();
- showMessage("⚡ XRT Mining Activated!");
+
+ const action = miningActive ? "stop" : "start";
+ const button = document.getElementById("miningButton");
+ if(button) button.disabled = true;
+
+ try{
+  const r = await fetch("/api/mining/" + action,{
+   method:"POST",
+   headers:headers()
+  });
+  const d = await r.json();
+
+  if(!r.ok){
+   showMessage(d.error || "Mining update failed.");
+   return;
+  }
+
+  setBalance(d.balance);
+  setMiningVisual(Boolean(d.mining_active));
+  showMessage(d.mining_active
+   ? "⚡ XRT Mining Started!"
+   : "Mining stopped. Your XRT is saved.");
+ }catch(e){
+  showMessage("Connection error. Please try again.");
+ }finally{
+  if(button) button.disabled = false;
+ }
 }
 
-if(localStorage.getItem("xrt_mining_active")==="true"){
- setMiningVisual(true);
-}
 function navSelect(button){
  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
  button.classList.add("active");

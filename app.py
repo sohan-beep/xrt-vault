@@ -104,6 +104,7 @@ def get_user(data, user_id):
     user.setdefault("balance", 0)
     user.setdefault("last_daily", "")
     user.setdefault("daily_streak", 0)
+    user.setdefault("mining_active", False)
 
     if user.get("mining_rate_version", 0) < 2:
         last = float(user.get("mining_last_update", now))
@@ -141,14 +142,15 @@ def process_referral(data, new_user_id, referrer_id):
     return True
 def accrue_mining(user):
     now = time.time()
-    last = float(user["mining_last_update"])
+    last = float(user.get("mining_last_update", now))
     elapsed = max(0, now - last)
 
-    earned = elapsed * MINING_PER_DAY / 86400
+    earned = 0
+    if user.get("mining_active", False):
+        earned = elapsed * MINING_PER_DAY / 86400
+        user["balance"] = float(user.get("balance", 0)) + earned
 
-    user["balance"] = float(user["balance"]) + earned
     user["mining_last_update"] = now
-
     return earned
 
 
@@ -192,12 +194,53 @@ def me():
         "first_name": telegram_user.get("first_name", ""),
         "balance": round(balance, 6),
         "mining_per_day": MINING_PER_DAY,
+        "mining_active": bool(user.get("mining_active", False)),
         "daily_bonus": DAILY_BONUS,
         "daily_streak": streak,
         "referral_link": f"https://t.me/xrtvaultbot?start=ref_{telegram_user['id']}",
         "referral_count": int(user.get("referral_count", 0)),
         "referral_earned": int(user.get("referral_count", 0)) * 25
     })
+
+
+@app.route("/api/mining/start", methods=["POST"])
+def mining_start():
+    telegram_user = get_verified_user()
+    if not telegram_user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    with lock:
+        data = load_data()
+        user = get_user(data, telegram_user["id"])
+
+        if not user.get("mining_active", False):
+            user["mining_last_update"] = time.time()
+            user["mining_active"] = True
+
+        save_data(data)
+        balance = float(user.get("balance", 0))
+
+    return jsonify({"success": True, "mining_active": True,
+                    "balance": round(balance, 6)})
+
+
+@app.route("/api/mining/stop", methods=["POST"])
+def mining_stop():
+    telegram_user = get_verified_user()
+    if not telegram_user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    with lock:
+        data = load_data()
+        user = get_user(data, telegram_user["id"])
+
+        accrue_mining(user)
+        user["mining_active"] = False
+        save_data(data)
+        balance = float(user.get("balance", 0))
+
+    return jsonify({"success": True, "mining_active": False,
+                    "balance": round(balance, 6)})
 
 
 @app.route("/api/daily", methods=["POST"])
